@@ -5,13 +5,13 @@
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
-        android:icon="@mipmap/ic_launcher"
-android:roundIcon="@mipmap/ic_launcher"
-        android:allowBackup="false"
-        android:label="Faridganj Upazila"
-        android:theme="@style/AppTheme"
-        android:usesCleartextTraffic="false"
-        android:supportsRtl="true">
+    android:allowBackup="false"
+    android:label="Faridganj Upazila"
+    android:icon="@mipmap/ic_launcher"
+    android:roundIcon="@mipmap/ic_launcher"
+    android:theme="@style/AppTheme"
+    android:usesCleartextTraffic="false"
+    android:supportsRtl="true">
 
         <activity
             android:name=".SplashActivity"
