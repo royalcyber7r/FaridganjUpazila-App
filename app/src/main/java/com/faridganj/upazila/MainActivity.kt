@@ -4,8 +4,12 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.view.View
+import android.webkit.CookieManager
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
@@ -17,35 +21,61 @@ class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
 
     companion object {
-        private const val HOME_URL = "https://faridganjapp.rf.gd/pages/home.php"
+        private const val HOME_URL =
+            "https://faridganjapp.rf.gd/"
+
         private const val SITE_HOST = "faridganjapp.rf.gd"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Cookie and Login Session support
+        val cookieManager = CookieManager.getInstance()
+        cookieManager.setAcceptCookie(true)
+        cookieManager.setAcceptThirdPartyCookies(
+            WebView(this),
+            true
+        )
+
         webView = WebView(this)
-        webView.settings.javaScriptEnabled = true
-        webView.settings.domStorageEnabled = true
-        webView.settings.loadsImagesAutomatically = true
-        webView.settings.javaScriptCanOpenWindowsAutomatically = false
-        webView.settings.setSupportMultipleWindows(false)
+
+        webView.setBackgroundColor(android.graphics.Color.WHITE)
+
+        val settings = webView.settings
+
+        settings.javaScriptEnabled = true
+        settings.domStorageEnabled = true
+        settings.databaseEnabled = true
+        settings.loadsImagesAutomatically = true
+        settings.javaScriptCanOpenWindowsAutomatically = true
+        settings.setSupportMultipleWindows(false)
+
+        settings.cacheMode = WebSettings.LOAD_DEFAULT
+        settings.mixedContentMode =
+            WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+
+        // Remove WebView identifier from User Agent
+        settings.userAgentString =
+            settings.userAgentString.replace("; wv", "")
+
+        webView.webChromeClient = WebChromeClient()
 
         webView.webViewClient = object : WebViewClient() {
+
             override fun shouldOverrideUrlLoading(
                 view: WebView,
                 request: WebResourceRequest
             ): Boolean {
-                val uri = request.url
-                val scheme = uri.scheme ?: return true
-                if (scheme == "https" && uri.host == SITE_HOST) return false
+                return handleUrl(view, request.url)
+            }
 
-                if (scheme == "http" && uri.host == SITE_HOST) {
-                    view.loadUrl(uri.buildUpon().scheme("https").build().toString())
-                    return true
-                }
-
-                return openExternal(uri)
+            @Suppress("DEPRECATION")
+            override fun shouldOverrideUrlLoading(
+                view: WebView,
+                url: String
+            ): Boolean {
+                return handleUrl(view, Uri.parse(url))
             }
 
             override fun onReceivedError(
@@ -53,10 +83,12 @@ class MainActivity : AppCompatActivity() {
                 request: WebResourceRequest,
                 error: WebResourceError
             ) {
+                super.onReceivedError(view, request, error)
+
                 if (request.isForMainFrame) {
                     Toast.makeText(
                         this@MainActivity,
-                        "ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।",
+                        "ওয়েবসাইট লোড হয়নি। ইন্টারনেট পরীক্ষা করে আবার চেষ্টা করুন।",
                         Toast.LENGTH_LONG
                     ).show()
                 }
@@ -64,32 +96,97 @@ class MainActivity : AppCompatActivity() {
         }
 
         setContentView(webView)
+
         if (savedInstanceState == null) {
             webView.loadUrl(HOME_URL)
         } else {
-            webView.restoreState(savedInstanceState)
+            val restored = webView.restoreState(savedInstanceState)
+
+            if (restored == null) {
+                webView.loadUrl(HOME_URL)
+            }
         }
 
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                if (webView.canGoBack()) webView.goBack() else finish()
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    if (webView.canGoBack()) {
+                        webView.goBack()
+                    } else {
+                        finish()
+                    }
+                }
             }
-        })
+        )
+    }
+
+    private fun handleUrl(
+        view: WebView,
+        uri: Uri
+    ): Boolean {
+
+        val scheme = uri.scheme?.lowercase() ?: return true
+        val host = uri.host?.lowercase() ?: ""
+
+        val isInternalSite =
+            host == SITE_HOST || host.endsWith(".$SITE_HOST")
+
+        if (isInternalSite) {
+
+            if (scheme == "https") {
+                return false
+            }
+
+            if (scheme == "http") {
+                val secureUrl = uri.buildUpon()
+                    .scheme("https")
+                    .build()
+                    .toString()
+
+                view.loadUrl(secureUrl)
+                return true
+            }
+        }
+
+        if (scheme == "tel" ||
+            scheme == "mailto" ||
+            scheme == "sms") {
+            return openExternal(uri)
+        }
+
+        if (scheme == "https" || scheme == "http") {
+            return openExternal(uri)
+        }
+
+        return true
     }
 
     private fun openExternal(uri: Uri): Boolean {
         return try {
-            val intent = if (uri.scheme == "tel" || uri.scheme == "mailto") {
+            startActivity(
                 Intent(Intent.ACTION_VIEW, uri)
-            } else {
-                Intent(Intent.ACTION_VIEW, uri)
-            }
-            startActivity(intent)
+            )
             true
         } catch (_: ActivityNotFoundException) {
-            Toast.makeText(this, "এই লিংক খোলার অ্যাপ পাওয়া যায়নি।", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                this,
+                "এই লিংক খোলার অ্যাপ পাওয়া যায়নি।",
+                Toast.LENGTH_SHORT
+            ).show()
             true
         }
+    }
+
+    override fun onPause() {
+        CookieManager.getInstance().flush()
+        webView.onPause()
+        super.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        webView.onResume()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -98,6 +195,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        webView.stopLoading()
         webView.destroy()
         super.onDestroy()
     }
