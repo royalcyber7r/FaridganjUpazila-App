@@ -284,11 +284,13 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
 
-                if (apkUrl.isNullOrBlank()) return@Thread
+                val finalApkUrl = apkUrl ?: return@Thread
 
-                runOnUiThread {
-                    showUpdateDialog(latestVersion, apkUrl)
-                }
+if (finalApkUrl.isBlank()) return@Thread
+
+runOnUiThread {
+    showUpdateDialog(latestVersion, finalApkUrl)
+}
 
             } catch (_: Exception) {
                 // Keep the app usable if update checking fails.
