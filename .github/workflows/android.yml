@@ -1,3 +1,4 @@
+
 name: Build Faridganj Upazila Android App
 
 on:
@@ -45,13 +46,18 @@ jobs:
         run: |
           gradle --no-daemon assembleDebug assembleRelease bundleRelease
 
+      - name: Rename Release APK
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk \
+             app/build/outputs/apk/release/Faridganjapp.apk
+
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: FaridganjUpazila-APK-AAB
           path: |
             app/build/outputs/apk/debug/*.apk
-            app/build/outputs/apk/release/*.apk
+            app/build/outputs/apk/release/Faridganjapp.apk
             app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
           retention-days: 30
@@ -64,10 +70,12 @@ jobs:
           body: |
             Faridganj Upazila Android App
 
-            Download the signed APK to install the application.
+            New version available.
+
+            Download Faridganjapp.apk to update the application.
             AAB file is provided for Google Play Store.
           draft: false
           prerelease: false
           files: |
-            app/build/outputs/apk/release/*.apk
+            app/build/outputs/apk/release/Faridganjapp.apk
             app/build/outputs/bundle/release/*.aab
