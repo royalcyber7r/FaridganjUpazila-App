@@ -1,6 +1,6 @@
 # Faridganj Upazila Android App
 
-Starter Android Studio project for `https://faridganjapp.rf.gd/pages/home.php`.
+Starter Android Studio project for `https://faridganjapp.rf.gd/`.
 
 ## Build configuration\n- Android Gradle Plugin 8.10.1, Gradle 8.11.1, JDK 17.\n- compileSdk/targetSdk 36 (current Google Play requirement for new apps as of August 31, 2026).\n\n## Current starter scope
 - Kotlin Android app with a WebView wrapper.
