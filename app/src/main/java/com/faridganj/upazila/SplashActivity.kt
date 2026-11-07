@@ -12,7 +12,6 @@ import androidx.appcompat.app.AppCompatActivity
 class SplashActivity : AppCompatActivity() {
 
     private var splashWebView: WebView? = null
-
     private val handler = Handler(Looper.getMainLooper())
 
     private val openApp = Runnable {
@@ -31,8 +30,6 @@ class SplashActivity : AppCompatActivity() {
 
         webView.setBackgroundColor(Color.WHITE)
         webView.settings.javaScriptEnabled = false
-        webView.settings.domStorageEnabled = false
-
         webView.webViewClient = WebViewClient()
 
         val html = """
@@ -66,25 +63,36 @@ class SplashActivity : AppCompatActivity() {
                         flex-direction: column;
                         align-items: center;
                         justify-content: center;
+                        padding: 24px;
                     }
 
                     img {
-                        width: 120px;
-                        height: 120px;
+                        width: 130px;
+                        height: 130px;
                         object-fit: contain;
+                        margin-bottom: 20px;
                     }
 
-                    h2 {
-                        color: #172d40;
-                        font-size: 23px;
-                        margin-top: 22px;
-                        font-weight: 700;
+                    h1 {
+                        color: #173B57;
+                        font-size: 26px;
+                        font-weight: 800;
+                        margin: 0;
+                        letter-spacing: 0.3px;
                     }
 
-                    p {
-                        color: #777777;
-                        font-size: 13px;
-                        margin-top: 2px;
+                    .welcome {
+                        color: #536B7C;
+                        font-size: 15px;
+                        margin-top: 12px;
+                        font-weight: 500;
+                    }
+
+                    .tagline {
+                        color: #16845B;
+                        font-size: 12px;
+                        margin-top: 9px;
+                        letter-spacing: 1px;
                     }
                 </style>
             </head>
@@ -93,8 +101,16 @@ class SplashActivity : AppCompatActivity() {
                     <img
                         src="https://faridganjapp.rf.gd/assets/logo.png"
                         alt="Faridganj Upazila Logo">
-                    <h2>Faridganj Upazila</h2>
-                    <p>Welcome</p>
+
+                    <h1>Faridganj Upazila</h1>
+
+                    <div class="welcome">
+                        Welcome to Faridganj Upazila
+                    </div>
+
+                    <div class="tagline">
+                        YOUR DIGITAL UPAZILA
+                    </div>
                 </div>
             </body>
             </html>
@@ -109,17 +125,14 @@ class SplashActivity : AppCompatActivity() {
         )
 
         setContentView(webView)
-
         handler.postDelayed(openApp, 2000)
     }
 
     override fun onDestroy() {
         handler.removeCallbacks(openApp)
-
         splashWebView?.stopLoading()
         splashWebView?.destroy()
         splashWebView = null
-
         super.onDestroy()
     }
 }
