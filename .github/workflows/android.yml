@@ -1,5 +1,7 @@
-      - name: Generate Launcher Icons
+- name: Generate Launcher Icons
         run: |
+          set -e
+
           python3 -m venv .venv
           . .venv/bin/activate
           pip install Pillow
@@ -9,6 +11,10 @@
           import os
 
           source = "app/src/main/res/drawable/logo.png"
+
+          if not os.path.isfile(source):
+              raise FileNotFoundError("logo.png not found: " + source)
+
           image = Image.open(source).convert("RGBA")
 
           sizes = {
@@ -20,19 +26,30 @@
           }
 
           for density, size in sizes.items():
-              canvas = Image.new("RGBA", (size, size), (255, 255, 255, 0))
+              folder = "app/src/main/res/mipmap-" + density
+              os.makedirs(folder, exist_ok=True)
+
+              canvas = Image.new(
+                  "RGBA",
+                  (size, size),
+                  (255, 255, 255, 0)
+              )
 
               logo = image.copy()
-              logo.thumbnail((size, size), Image.Resampling.LANCZOS)
+              logo.thumbnail(
+                  (size, size),
+                  Image.Resampling.LANCZOS
+              )
 
               x = (size - logo.width) // 2
               y = (size - logo.height) // 2
 
               canvas.alpha_composite(logo, (x, y))
 
-              folder = "app/src/main/res/mipmap-" + density
-              os.makedirs(folder, exist_ok=True)
-              canvas.save(os.path.join(folder, "ic_launcher.png"))
+              output = os.path.join(folder, "ic_launcher.png")
+              canvas.save(output)
 
-          print("Launcher icons generated successfully.")
+              print("Created:", output)
+
+          print("All launcher icons generated successfully.")
           PY
