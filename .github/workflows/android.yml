@@ -1,62 +1,14 @@
-name: Build Faridganj Upazila Android App
-
-on:
-  push:
-    branches: [main]
-  workflow_dispatch:
-
-permissions:
-  contents: write
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
-
-      - name: Setup JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.11.1'
-
-      # App Logo and Launcher Icon
-      - name: Download App Logo
-        continue-on-error: true
+      - name: Generate Launcher Icons
         run: |
-          mkdir -p app/src/main/res/drawable
-          mkdir -p app/src/main/res/mipmap-hdpi
-          mkdir -p app/src/main/res/mipmap-mdpi
-          mkdir -p app/src/main/res/mipmap-xhdpi
-          mkdir -p app/src/main/res/mipmap-xxhdpi
-          mkdir -p app/src/main/res/mipmap-xxxhdpi
+          python3 -m venv .venv
+          . .venv/bin/activate
+          pip install Pillow
 
-          curl --retry 5 \
-            --retry-all-errors \
-            --retry-delay 3 \
-            --connect-timeout 20 \
-            --max-time 120 \
-            -fL \
-            "https://faridganjapp.rf.gd/assets/logo.png" \
-            -o app/src/main/res/drawable/faridganj_logo.png || true
-
-          if [ -s app/src/main/res/drawable/faridganj_logo.png ]; then
-            python3 -m venv .venv
-            . .venv/bin/activate
-            pip install Pillow
-
-            python3 - <<'PY'
+          python3 - <<'PY'
           from PIL import Image
           import os
 
-          source = "app/src/main/res/drawable/faridganj_logo.png"
+          source = "app/src/main/res/drawable/logo.png"
           image = Image.open(source).convert("RGBA")
 
           sizes = {
@@ -68,17 +20,10 @@ jobs:
           }
 
           for density, size in sizes.items():
-              canvas = Image.new(
-                  "RGBA",
-                  (size, size),
-                  (255, 255, 255, 0)
-              )
+              canvas = Image.new("RGBA", (size, size), (255, 255, 255, 0))
 
               logo = image.copy()
-              logo.thumbnail(
-                  (size, size),
-                  Image.Resampling.LANCZOS
-              )
+              logo.thumbnail((size, size), Image.Resampling.LANCZOS)
 
               x = (size - logo.width) // 2
               y = (size - logo.height) // 2
@@ -86,69 +31,8 @@ jobs:
               canvas.alpha_composite(logo, (x, y))
 
               folder = "app/src/main/res/mipmap-" + density
-              canvas.save(
-                  os.path.join(folder, "ic_launcher.png")
-              )
+              os.makedirs(folder, exist_ok=True)
+              canvas.save(os.path.join(folder, "ic_launcher.png"))
 
           print("Launcher icons generated successfully.")
           PY
-          else
-            echo "Logo download failed. Continuing build."
-          fi
-
-      # Decode Signing Key
-      - name: Decode release keystore
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-        run: |
-          test -n "$KEYSTORE_BASE64"
-          echo "$KEYSTORE_BASE64" | base64 --decode > app/release-keystore.jks
-          test -s app/release-keystore.jks
-
-      # Build APK and AAB
-      - name: Build Signed APK and AAB
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          VERSION_CODE: ${{ github.run_number }}
-          VERSION_NAME: 1.0.${{ github.run_number }}
-        run: |
-          gradle --no-daemon assembleDebug assembleRelease bundleRelease
-
-      # Rename APK
-      - name: Rename Release APK
-        run: |
-          cp app/build/outputs/apk/release/app-release.apk \
-             app/build/outputs/apk/release/Faridganjapp.apk
-
-      # Upload Artifacts
-      - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: FaridganjUpazila-APK-AAB
-          path: |
-            app/build/outputs/apk/debug/*.apk
-            app/build/outputs/apk/release/Faridganjapp.apk
-            app/build/outputs/bundle/release/*.aab
-          if-no-files-found: error
-          retention-days: 30
-
-      # Publish GitHub Release
-      - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v1.0.${{ github.run_number }}
-          name: Faridganj Upazila App v1.0.${{ github.run_number }}
-          body: |
-            Faridganj Upazila Android App
-
-            New version available.
-
-            Download Faridganjapp.apk to update the application.
-            AAB file is provided for Google Play Store.
-          draft: false
-          prerelease: false
-          files: |
-            app/build/outputs/apk/release/Faridganjapp.apk
-            app/build/outputs/bundle/release/*.aab
