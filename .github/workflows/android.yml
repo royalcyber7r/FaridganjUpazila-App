@@ -27,7 +27,9 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
+      # App Logo and Launcher Icon
       - name: Download App Logo
+        continue-on-error: true
         run: |
           mkdir -p app/src/main/res/drawable
           mkdir -p app/src/main/res/mipmap-hdpi
@@ -36,14 +38,22 @@ jobs:
           mkdir -p app/src/main/res/mipmap-xxhdpi
           mkdir -p app/src/main/res/mipmap-xxxhdpi
 
-          curl -fL \
+          curl --retry 5 \
+            --retry-all-errors \
+            --retry-delay 3 \
+            --connect-timeout 20 \
+            --max-time 120 \
+            -fL \
             "https://faridganjapp.rf.gd/assets/logo.png" \
-            -o app/src/main/res/drawable/faridganj_logo.png
+            -o app/src/main/res/drawable/faridganj_logo.png || true
 
-          python3 -m pip install Pillow
+          if [ -s app/src/main/res/drawable/faridganj_logo.png ]; then
+            python3 -m venv .venv
+            . .venv/bin/activate
+            pip install Pillow
 
-          python3 - <<'PY'
-          from PIL import Image, ImageDraw
+            python3 - <<'PY'
+          from PIL import Image
           import os
 
           source = "app/src/main/res/drawable/faridganj_logo.png"
@@ -58,16 +68,35 @@ jobs:
           }
 
           for density, size in sizes.items():
-              canvas = Image.new("RGBA", (size, size), (255,255,255,0))
+              canvas = Image.new(
+                  "RGBA",
+                  (size, size),
+                  (255, 255, 255, 0)
+              )
+
               logo = image.copy()
-              logo.thumbnail((size, size), Image.Resampling.LANCZOS)
+              logo.thumbnail(
+                  (size, size),
+                  Image.Resampling.LANCZOS
+              )
+
               x = (size - logo.width) // 2
               y = (size - logo.height) // 2
-              canvas.alpha_composite(logo, (x, y))
-              folder = "app/src/main/res/mipmap-" + density
-              canvas.save(os.path.join(folder, "ic_launcher.png"))
-          PY
 
+              canvas.alpha_composite(logo, (x, y))
+
+              folder = "app/src/main/res/mipmap-" + density
+              canvas.save(
+                  os.path.join(folder, "ic_launcher.png")
+              )
+
+          print("Launcher icons generated successfully.")
+          PY
+          else
+            echo "Logo download failed. Continuing build."
+          fi
+
+      # Decode Signing Key
       - name: Decode release keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -76,6 +105,7 @@ jobs:
           echo "$KEYSTORE_BASE64" | base64 --decode > app/release-keystore.jks
           test -s app/release-keystore.jks
 
+      # Build APK and AAB
       - name: Build Signed APK and AAB
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -86,11 +116,13 @@ jobs:
         run: |
           gradle --no-daemon assembleDebug assembleRelease bundleRelease
 
+      # Rename APK
       - name: Rename Release APK
         run: |
           cp app/build/outputs/apk/release/app-release.apk \
              app/build/outputs/apk/release/Faridganjapp.apk
 
+      # Upload Artifacts
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -102,6 +134,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      # Publish GitHub Release
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -109,6 +142,9 @@ jobs:
           name: Faridganj Upazila App v1.0.${{ github.run_number }}
           body: |
             Faridganj Upazila Android App
+
+            New version available.
+
             Download Faridganjapp.apk to update the application.
             AAB file is provided for Google Play Store.
           draft: false
