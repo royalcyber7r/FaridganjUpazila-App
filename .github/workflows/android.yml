@@ -1,3 +1,4 @@
+
 name: Build Faridganj Upazila Android App
 
 on:
@@ -27,9 +28,9 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
-      - name: Build APK and AAB
+      - name: Build Debug APK, Release APK and AAB
         run: |
-          gradle --no-daemon assembleDebug bundleRelease
+          gradle --no-daemon assembleDebug assembleRelease bundleRelease
 
       - name: Upload APK and AAB
         uses: actions/upload-artifact@v4
@@ -37,6 +38,7 @@ jobs:
           name: FaridganjUpazila-APK-AAB
           path: |
             app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/release/*.apk
             app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
           retention-days: 30
